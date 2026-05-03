@@ -1,0 +1,13 @@
+:root{--bg:#f3f7ff;--card:#fff;--ink:#1f3556;--accent:#0077cc;--line:#dbe6f5}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.hero{background:linear-gradient(120deg,#0c4a7d,#1597d0);color:#fff;padding:24px;text-align:center}
+.container{max-width:1100px;margin:20px auto;padding:0 12px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,.06)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:center}
+input,select,button{padding:10px;border:1px solid #bfd0ea;border-radius:8px}
+button{background:var(--accent);color:#fff;border:none;cursor:pointer}
+button:hover{filter:brightness(.95)}
+.msg{margin-top:8px;font-weight:700}
+.actions{display:flex;gap:10px;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;background:#fff}th,td{border:1px solid var(--line);padding:8px;text-align:left}th{background:#e8f1ff}
+.journey{border:1px solid var(--line);padding:10px;border-radius:8px;margin-bottom:10px}
