@@ -139,15 +139,10 @@ const minutesToTime = (minutes) => {
 };
 
 const isValidTime = (timeStr) => {
-  if (timeStr.length !== 5 || timeStr[2] !== ':') {
+  if (!/^\d{2}:\d{2}$/.test(timeStr)) {
     return false;
   }
-  const parts = timeStr.split(':');
-  if (parts.length !== 2 || parts.some((part) => !/^\d+$/.test(part))) {
-    return false;
-  }
-  const hours = Number(parts[0]);
-  const minutes = Number(parts[1]);
+  const [hours, minutes] = timeStr.split(':').map(Number);
   return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
 };
 
@@ -734,17 +729,26 @@ const renderJourneys = (journeys) => {
     return '<p class="muted">No journeys found matching criteria.</p>';
   }
   return journeys
-    .map(
-      (journey, index) => `<div class="journey">
+    .map((journey, index) => {
+      const totalCost = Number.isFinite(journey.totalCost)
+        ? journey.totalCost
+        : calculateTotalCost(journey.flights);
+      const totalTravelTime = Number.isFinite(journey.totalTravelTime)
+        ? journey.totalTravelTime
+        : calculateTotalTravelTime(journey.flights);
+      const totalTransitTime = Number.isFinite(journey.totalTransitTime)
+        ? journey.totalTransitTime
+        : 0;
+      return `<div class="journey">
         <div class="journey-header">
           <span>Journey ${index + 1}</span>
-          <span class="pill">Cost: ${journey.totalCost.toFixed(2)}</span>
-          <span class="pill">Travel: ${journey.totalTravelTime} mins</span>
-          <span class="pill">Transit: ${journey.totalTransitTime} mins</span>
+          <span class="pill">Cost: ${totalCost.toFixed(2)}</span>
+          <span class="pill">Travel: ${totalTravelTime} mins</span>
+          <span class="pill">Transit: ${totalTransitTime} mins</span>
         </div>
         ${renderFlightsTable(journey.flights)}
-      </div>`,
-    )
+      </div>`;
+    })
     .join('');
 };
 
@@ -791,6 +795,22 @@ const setMessage = (element, message, isError = false) => {
   element.style.color = isError ? '#c0392b' : '#1b5e20';
 };
 
+const validateCityPair = (origin, destination, target) => {
+  if (!isValidCityName(origin) || !isValidCityName(destination)) {
+    setMessage(target, 'Invalid origin or destination. Use letters only.', true);
+    return false;
+  }
+  return true;
+};
+
+const validateDateInput = (date, target) => {
+  if (!isValidDate(date)) {
+    setMessage(target, 'Invalid date. Use d/m/yyyy.', true);
+    return false;
+  }
+  return true;
+};
+
 initData();
 
 const addFlightForm = document.getElementById('addFlightForm');
@@ -822,12 +842,10 @@ modeSelect.addEventListener('change', updateModeFields);
 addFlightForm.addEventListener('submit', (event) => {
   event.preventDefault();
   const formData = Object.fromEntries(new FormData(event.target));
-  if (!isValidCityName(formData.origin) || !isValidCityName(formData.destination)) {
-    setMessage(addFlightMsg, 'Invalid origin or destination. Use letters only.', true);
+  if (!validateCityPair(formData.origin, formData.destination, addFlightMsg)) {
     return;
   }
-  if (!isValidDate(formData.date)) {
-    setMessage(addFlightMsg, 'Invalid date. Use d/m/yyyy.', true);
+  if (!validateDateInput(formData.date, addFlightMsg)) {
     return;
   }
   if (!isValidTime(formData.departureTime) || !isValidTime(formData.arrivalTime)) {
@@ -864,12 +882,10 @@ addFlightForm.addEventListener('submit', (event) => {
 searchFlightForm.addEventListener('submit', (event) => {
   event.preventDefault();
   const formData = Object.fromEntries(new FormData(event.target));
-  if (!isValidCityName(formData.origin) || !isValidCityName(formData.destination)) {
-    setMessage(searchResult, 'Invalid origin or destination. Use letters only.', true);
+  if (!validateCityPair(formData.origin, formData.destination, searchResult)) {
     return;
   }
-  if (!isValidDate(formData.date)) {
-    setMessage(searchResult, 'Invalid date. Use d/m/yyyy.', true);
+  if (!validateDateInput(formData.date, searchResult)) {
     return;
   }
   const origin = normalizeCityName(formData.origin);
@@ -972,12 +988,10 @@ searchFlightForm.addEventListener('submit', (event) => {
 bookForm.addEventListener('submit', (event) => {
   event.preventDefault();
   const formData = Object.fromEntries(new FormData(event.target));
-  if (!isValidCityName(formData.origin) || !isValidCityName(formData.destination)) {
-    setMessage(bookMsg, 'Invalid origin or destination. Use letters only.', true);
+  if (!validateCityPair(formData.origin, formData.destination, bookMsg)) {
     return;
   }
-  if (!isValidDate(formData.date)) {
-    setMessage(bookMsg, 'Invalid date. Use d/m/yyyy.', true);
+  if (!validateDateInput(formData.date, bookMsg)) {
     return;
   }
   const journeys = queryJourneys(
