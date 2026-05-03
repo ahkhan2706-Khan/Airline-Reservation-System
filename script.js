@@ -262,9 +262,6 @@ const parseFlightLine = (line) => {
     return null;
   }
   const [origin, destination, date, departureTime, arrivalTime, ...rest] = tokens;
-  if (rest.length === 0) {
-    return null;
-  }
   let ticketPrice = 0;
   let airline = '';
   if (rest.length >= 2) {
