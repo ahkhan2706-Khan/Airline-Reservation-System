@@ -468,7 +468,7 @@ const searchJourneysRecursive = (
         if (addedTransit < minMinutes) {
           continue;
         }
-        if (maxMinutes >= 0 && addedTransit > maxMinutes) {
+        if (maxMinutes !== NO_TRANSIT_LIMIT && addedTransit > maxMinutes) {
           continue;
         }
         nextTransitSatisfied = true;
@@ -925,7 +925,7 @@ searchFlightForm.addEventListener('submit', (event) => {
       setMessage(searchResult, 'Valid transit city is required.', true);
       return;
     }
-    if (!formData.minTransit || !formData.maxTransit) {
+    if (formData.minTransit === '' || formData.maxTransit === '') {
       setMessage(searchResult, 'Minimum and maximum transit hours are required.', true);
       return;
     }
@@ -948,7 +948,7 @@ searchFlightForm.addEventListener('submit', (event) => {
     output = renderJourneys(journeys);
   } else if (formData.mode === 'budget') {
     const maxCost = Number(formData.maxCost);
-    if (!formData.maxCost || Number.isNaN(maxCost) || maxCost < 0) {
+    if (formData.maxCost === '' || Number.isNaN(maxCost) || maxCost < 0) {
       setMessage(searchResult, 'Valid max total cost is required.', true);
       return;
     }

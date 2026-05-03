@@ -49,8 +49,8 @@
             <input id="add-arrival" name="arrivalTime" placeholder="18:00" required />
           </div>
           <div class="field">
-            <label for="add-price">Ticket Price</label>
-            <input id="add-price" name="ticketPrice" type="number" min="0" step="0.01" placeholder="150000" />
+            <label for="add-price">Ticket Price (optional)</label>
+            <input id="add-price" name="ticketPrice" type="number" min="0" step="0.01" placeholder="150000 or leave blank" />
           </div>
           <div class="field">
             <label for="add-airline">Airline</label>
@@ -59,6 +59,7 @@
           <button type="submit" class="btn-primary">Add Flight</button>
         </form>
         <div id="addFlightMsg" class="msg"></div>
+        <p class="hint">City names use single-word identifiers (e.g., Newyork, HongKong, Lodon).</p>
 
         <div class="divider"></div>
 
