@@ -1,8 +1,21 @@
+<div align="center">
+
 # ✈️ Airline Reservation System
 
-A C++ data structures project that models a real-world airline reservation system. Passengers can search for direct and connecting flights across multiple airlines and cities, filtered by cost, travel time, preferred airline, transit location, and date — all exposed through both a command-line interface and a lightweight HTTP web API with an HTML frontend.
+**A C++ data structures project modelling a real-world airline reservation platform**
 
-> **Academic context:** FAST National University of Computer & Emerging Sciences — Cyber Security · Data Structures · Spring 2026
+[![Language](https://img.shields.io/badge/Language-C%2B%2B17-blue?logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp/17)
+[![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey?logo=windows&logoColor=white)](https://visualstudio.microsoft.com/)
+[![IDE](https://img.shields.io/badge/IDE-Visual%20Studio-purple?logo=visualstudio&logoColor=white)](https://visualstudio.microsoft.com/)
+[![Testing](https://img.shields.io/badge/Tests-Google%20Test-green?logo=google&logoColor=white)](https://github.com/google/googletest)
+[![API](https://img.shields.io/badge/Web%20API-cpp--httplib-orange)](https://github.com/yhirose/cpp-httplib)
+[![University](https://img.shields.io/badge/FAST%20NUCES-Spring%202026-red)](https://nu.edu.pk/)
+
+<br/>
+
+*Search flights · Filter by airline, cost, or transit · Book multi-leg journeys · All via CLI or a live web UI*
+
+</div>
 
 ---
 
@@ -25,6 +38,8 @@ A C++ data structures project that models a real-world airline reservation syste
 
 The system reads flight schedules and hotel pricing from flat text files, builds an in-memory **flight graph** (cities as vertices, flights as directed edges), and answers passenger queries using recursive depth-first search combined with cost/time optimisation.
 
+> 🗺️ **Find cheapest routes** · ⏱️ **Find fastest routes** · 🏨 **Factor hotel costs** · 🔄 **±1 day date fallback**
+
 Key capabilities:
 
 - Find the cheapest multi-leg journey between any two cities.
@@ -37,7 +52,7 @@ Key capabilities:
 
 ## Features
 
-| Feature | Details |
+| ✅ Feature | Details |
 |---|---|
 | Direct-flight search | Exact date (±1 day fallback) |
 | Connecting-flight search | Up to configurable number of legs via recursive DFS |
@@ -228,6 +243,8 @@ All endpoints return JSON. Date format: `d/m/yyyy`.
 
 ## Building the Project
 
+> 💡 **Quick start:** Open the solution in Visual Studio, restore NuGet packages, and press `Ctrl+Shift+B`.
+
 ### Prerequisites
 
 - **Visual Studio 2019 / 2022** (Windows) with the *Desktop development with C++* workload.
@@ -283,3 +300,11 @@ Build without `RUN_WEBSERVER` defined, then run the output executable. Example o
 | **Google Test** | Unit testing framework |
 | **Visual Studio** | IDE + build system (MSBuild) |
 | **NuGet** | Package management (Google Test) |
+
+---
+
+<div align="center">
+
+*Built at FAST NUCES · Cyber Security · Data Structures · Spring 2026*
+
+</div>
