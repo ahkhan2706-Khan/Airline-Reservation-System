@@ -1,0 +1,233 @@
+﻿AIRLINE RESERVATION SYSTEM
+
+The airline reservation system facilitates users (or passengers) in finding suitable
+itinerary across several airliners and destinations.
+The passengers usually provide the following information to the airline reservation
+system for planning their air travel.
+● Origin of air travel.
+● Destination of air travel.
+● Date of the travel: Passenger specifies tentative date of the travel. It is
+important to note that if no flight is available on the specific date, the
+reservation system provides the flight options within 1 day (before and after) of
+the tentative date. For example, if there is no flight on 9
+
+th June from Islamabad
+
+to London, the system will provide the flight options on 8
+
+th and 10th June.
+
+2
+
+FAST National University of Computer & Emerging Sciences
+
+Cyber Security - Data Structures
+Spring 2026
+
+● Transits locations: A passenger can optionally specify transit locations along
+with the preferred transit duration. For example, a passenger can specify that
+s/he wants to have a transit of 19 hours in Dubai while travelling from
+Islamabad to London.
+It is important to note that a trip to a certain destination might require a transit,
+i.e., a connecting flight (even if no transit preference is specified by the
+passenger). For example, in the absence of any direct flight from Islamabad to
+London, the only possibility might be to have a flight from Islamabad to Dubai
+and afterwards a connecting flight from Dubai to London. Clearly, in this case
+the passenger has to stay in Dubai for some hours before boarding on the flight
+from Dubai to London.
+In the absence of transit preferences, the reservation system tries to minimize
+the transit time.
+● Airline of choice: A passenger can optionally specify the preferred airline for the
+travel.
+● Cost or travel time: A passenger specifies the criteria to be used by the
+reservation system for calculating the possible travel options.
+
+On receiving the passenger query (with the above mentioned options), the
+reservation system calculates the possible travels options according to the
+criterion selected by the passenger, i.e.,
+● Cost: The cost of travel should be minimized. The cost of a connected flight
+includes the cost of travelling (i.e., ticket price) on each leg of the journey and
+additionally cost of hotel (if transit time is more than 12 hours).
+● Travel time: The travel time should be minimized. The travel time also includes
+the time of transit.
+In addition to the cost and travel time criteria, the travel options calculated by the
+reservation system also satisfies the constraints specified by the passenger, i.e.,
+preferred airline, transit time preferences etc.
+
+Following table presents some of the use cases that must be handled by airline
+reservation system:
+
+3
+
+FAST National University of Computer & Emerging Sciences
+
+Cyber Security - Data Structures
+Spring 2026
+
+4
+
+Passenger Query Reservation System
+Scenario 1: Passenger wants to book a flight of a certain airline going to a certain
+destination on a specific date with minimal travel cost.
+
+Origin
+Destination
+Date
+Airline of choice
+Criterion: Travel cost
+
+Sorted list of flights of the specified
+airline matching origin, destination as
+well as date. The list also includes the
+travel options with connected flights.
+The list will be sorted on the basis of travel
+cost (including all possible charges
+explained above).
+Additionally, the travel time of each option
+is also specified for information purposes.
+Scenario 2: Passenger wants to book a fight going to a certain destination on a
+specific date with minimal travel time.
+
+Origin
+Destination
+Date of travel
+Criterion: Travel time
+
+List of all possible flights (may be with
+connecting flights from different airlines)
+sorted according to the travel time
+(including the transit time if any).
+Additionally, the travel cost of each flight
+option is also specified for information
+purposes.
+
+Scenario 3: Passenger wants to book a connecting flight going to a certain destination
+on a specific date with a transit stay.
+
+Origin
+Destination
+Date of travel
+Transit
+location
+
+List of flights matching the constraints
+(origin, destination, date of travel, transit
+location).
+Additionally, the travel cost and travel time
+of each flight option is also specified for
+information purposes.
+
+FAST National University of Computer & Emerging Sciences
+
+Cyber Security - Data Structures
+Spring 2026
+
+Above scenarios are only a few possible passenger booking request scenarios in
+an airline reservation system. Students are supposed to handle any combination of
+requirements mentioned above.
+
+5
+Scenario 4: Passenger wants to book a connecting flight going to a certain destination
+on a specific date having a particular transit time with minimum travel time.
+
+Origin
+
+Sorted list of flights matching the
+constraints (origin, destination, date
+Destination of travel, transit location and transit
+Date of travel time). The list will be sorted on the
+Transit location
+Min and max transit duration
+
+basis of travel time (including the transit
+time).
+
+Criterion: Travel time
+
+Additionally, the travel cost of each flight
+option is also specified for information
+purpose.
+
+Scenario 5: Customer wants to book a non-connecting (i.e., direct) flight going to a
+certain destination on a specific date and time.
+
+List of direct flights matching the
+constraints (origin, destination,
+
+Origin
+Destination
+
+date of travel).
+
+Date of travel Additionally, the travel cost and travel time
+of each flight option is also specified for
+information purpose.
+
+FAST National University of Computer & Emerging Sciences
+
+Cyber Security - Data Structures
+Spring 2026
+
+Instructions
+The Flights.txt file contains information about the flights. In particular, each entry in
+the file contains the following information (in the same order, separated by space)
+● Origin
+● Destination
+● Date of travel
+● Flying time
+● Landing time
+● Ticket price
+● Name of airline
+
+It is important to note that the flying and landing times are added in the flight data
+however the passengers are not given the option to choose the preferred time of
+flight (rather passengers can only choose the preferred date of travel). The flying
+and landing times are included in the flight data for the correct identification of
+connecting flights and transit times.
+For example, if a PIA flight from Islamabad to Karachi is from 9:00 AM to 11:00
+AM. A passenger cannot take a connecting flight from Karachi with flying time
+earlier than 11:00 AM. Likewise, a passenger has a transit time of 6 hours in
+Karachi, if the connecting flight from Karachi is scheduled to fly at 5:00 PM.
+Moreover, the HotelCharges_perday.txt file contains information about the hotel
+price if the stay is more than 12 hours (or passengers prefer to have a longer
+transit stay).
+Generate a main graph by reading the data provided in Flights.txt and
+HotelCharges_perday.txt files. For example, the vertices in the graph will be cities
+and edges represent availability of flights between the cities.
+Moreover, edges store information about the flights between the two adjacent
+vertices, e.g., name of airline, ticket price, date of travel, flying time, landing time
+etc. The hotel price information can also be stored in the vertices of the respective
+cities.
+
+6
+
+FAST National University of Computer & Emerging Sciences
+
+Cyber Security - Data Structures
+Spring 2026
+
+Given a passenger query, you might generate a sub-graph (that only contains the
+information relevant to the query) OR/AND adjacency matrix/adjacency list to
+calculate the results of the query. For example, if the passenger has selected
+Emirates as preferred airline then the cities without Emirates flights are not
+required to calculate the results of the query.
+From the algorithmic perspective, the above mentioned queries (in the table) can
+be divided into easy and difficult categories.
+The easy category includes queries (i) related to direct flights or (ii) where a
+passenger has specified preferred airline (e.g., Emirates or Qatar etc.). The queries
+in this category can be answered using the slight modifications to the algorithms
+discussed during the lectures.
+The difficult category includes queries (i) where flights from multiple airlines can be
+used to generate a travel journey or (ii) where passenger has specified preferred
+transit location and duration. The queries in this category cannot be answered by
+the direct use of algorithms from the lectures. We expect students to think about
+the possible data structures and algorithms to solve the queries in this category.
+Clearly, the queries in this part have more weightage in the overall project grade.
+
+What to submit
+Submit your code according to the guidelines given above. Moreover, you are
+supposed to submit a detailed report summarizing the data structures and
+algorithms. In particular, you have to justify the algorithm for answering the queries
+in difficult categories. Your justification should be scientific (i.e. why you chose a
+specific algorithm) by focusing on the time and space complexities as well as
+correctness of the algorithm.

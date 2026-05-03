@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Airline Reservation Demo</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            margin: 0;
+            padding: 32px;
+            background: linear-gradient(135deg, #f4f8ff 0%, #f8f4ff 100%);
+            color: #1f2a44;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(25, 42, 70, 0.12);
+            padding: 28px 32px 36px;
+            animation: fadeIn 0.6s ease-out;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: 600;
+            color: #2d3a57;
+        }
+        input, select, button {
+            padding: 6px;
+            margin-top: 4px;
+            border-radius: 8px;
+            border: 1px solid #d6dbe8;
+            font-size: 14px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        input:focus, select:focus {
+            border-color: #5a7bff;
+            box-shadow: 0 0 0 3px rgba(90, 123, 255, 0.15);
+            outline: none;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 10px;
+            background: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        th {
+            background: #f2f5ff;
+            color: #2d3a57;
+        }
+        tbody tr:nth-child(even) {
+            background: #f9fbff;
+        }
+        .journey {
+            margin-bottom: 16px;
+            animation: slideUp 0.4s ease;
+        }
+        .meta {
+            margin: 6px 0;
+            font-weight: bold;
+            color: #394765;
+        }
+        .row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .row > div {
+            min-width: 200px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        .subtitle {
+            color: #6b778c;
+            margin-top: 4px;
+        }
+        #runBtn {
+            background: #5a7bff;
+            color: #ffffff;
+            border: none;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
+        }
+        #runBtn:hover {
+            box-shadow: 0 8px 18px rgba(90, 123, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        #runBtn:active {
+            transform: translateY(0);
+        }
+        #result {
+            margin-top: 12px;
+            padding: 12px;
+            border: 1px solid #e3e7f2;
+            border-radius: 10px;
+            background: #fbfcff;
+            min-height: 60px;
+            animation: fadeIn 0.4s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Airline Reservation Demo</h1>
+                <div class="subtitle">Search flight options quickly with filters.</div>
+            </div>
+        </div>
+
+        <div class="row">
+        <div>
+            <label>Origin</label>
+            <input id="origin" placeholder="islamabad" />
+        </div>
+        <div>
+            <label>Destination</label>
+            <input id="destination" placeholder="london" />
+        </div>
+        <div>
+            <label>Date (d/m/yyyy)</label>
+            <input id="date" placeholder="1/12/2019" />
+        </div>
+        <div>
+            <label>Airline (optional)</label>
+            <input id="airline" placeholder="Emirates" />
+        </div>
+        <div>
+            <label>Transit city (optional)</label>
+            <input id="transit" placeholder="dubai" />
+        </div>
+    </div>
+
+        <label>Query type</label>
+        <select id="queryType">
+            <option value="min-time">Minimal travel time</option>
+            <option value="by-airline">Specific airline (cost sorted)</option>
+            <option value="with-transit">With transit city</option>
+            <option value="direct">Direct flights only</option>
+        </select>
+
+        <div style="margin-top: 12px;">
+            <button id="runBtn">Run Query</button>
+        </div>
+
+        <h2>Result</h2>
+        <div id="result">Waiting...</div>
+    </div>
+
+    <script>
+        const result = document.getElementById('result');
+        const runBtn = document.getElementById('runBtn');
+
+        function renderFlightsTable(flights) {
+            if (!flights || flights.length === 0) {
+                return '<div>No flights found.</div>';
+            }
+
+            const rows = flights.map(f => `
+                <tr>
+                    <td>${f.origin}</td>
+                    <td>${f.destination}</td>
+                    <td>${f.date}</td>
+                    <td>${f.departureTime}</td>
+                    <td>${f.arrivalTime}</td>
+                    <td>${f.ticketPrice}</td>
+                    <td>${f.airline}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Origin</th>
+                            <th>Destination</th>
+                            <th>Date</th>
+                            <th>Departure</th>
+                            <th>Arrival</th>
+                            <th>Price</th>
+                            <th>Airline</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+        }
+
+        function renderJourneys(data) {
+            if (!data.journeys || data.journeys.length === 0) {
+                return '<div>No journeys found.</div>';
+            }
+
+            return data.journeys.map((journey, index) => {
+                const meta = `
+                    <div class="meta">
+                        Journey ${index + 1}: Cost ${journey.totalCost}, Travel Time ${journey.totalTravelTime} mins, Transit ${journey.totalTransitTime} mins
+                    </div>
+                `;
+                return `<div class="journey">${meta}${renderFlightsTable(journey.flights)}</div>`;
+            }).join('');
+        }
+
+        function renderResponse(text) {
+            try {
+                const data = JSON.parse(text);
+                if (data.flights) {
+                    result.innerHTML = renderFlightsTable(data.flights);
+                    return;
+                }
+                if (data.journeys) {
+                    result.innerHTML = renderJourneys(data);
+                    return;
+                }
+                if (data.error) {
+                    result.textContent = data.error;
+                    return;
+                }
+                result.textContent = text;
+            } catch (err) {
+                result.textContent = text;
+            }
+        }
+
+        function buildUrl() {
+            const origin = document.getElementById('origin').value.trim();
+            const destination = document.getElementById('destination').value.trim();
+            const date = document.getElementById('date').value.trim();
+            const airline = document.getElementById('airline').value.trim();
+            const transit = document.getElementById('transit').value.trim();
+            const queryType = document.getElementById('queryType').value;
+
+            const params = new URLSearchParams();
+            params.append('origin', origin);
+            params.append('destination', destination);
+            params.append('date', date);
+
+            if (queryType === 'by-airline') {
+                params.append('airline', airline);
+                return `/api/by-airline?${params.toString()}`;
+            }
+
+            if (queryType === 'with-transit') {
+                params.append('transit', transit);
+                return `/api/with-transit?${params.toString()}`;
+            }
+
+            if (queryType === 'direct') {
+                return `/api/direct?${params.toString()}`;
+            }
+
+            return `/api/min-time?${params.toString()}`;
+        }
+
+        runBtn.addEventListener('click', async () => {
+            result.textContent = 'Loading...';
+            try {
+                const url = buildUrl();
+                const response = await fetch(url);
+                const text = await response.text();
+                renderResponse(text);
+            } catch (err) {
+                result.textContent = err.toString();
+            }
+        });
+    </script>
+</body>
+</html>
