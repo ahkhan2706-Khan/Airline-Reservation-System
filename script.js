@@ -1,6 +1,8 @@
 const FLIGHTS_KEY = 'ars_flights_v1';
 const RES_KEY = 'ars_reservations_v1';
 const CITIES_KEY = 'ars_cities_v1';
+const SEED_VERSION_KEY = 'ars_seed_version_v1';
+const SEED_VERSION = '2026-05-03';
 
 const flightsSeed = `Islamabad Newyork 1/12/2019 11:00 18:00 150000 Emirates
 Islamabad Newyork 1/12/2019 8:00 13:00 300000 Qatar
@@ -107,6 +109,7 @@ Singapore Berlin 3/12/2019 5:00 10:00 50000 Emirates
 Amsterdam Islamabad 2/12/2019 11:00 16:00 100000 ANA
 Newyork Sydney 5/12/2019 15:00 23:50 Emirates
 Seoul Newyork 4/12/2019 6:00 14:00 150000 Qatar`;
+
 const citySeed = `Islamabad 5000
 NewYork 8000
 Paris 20000
@@ -119,45 +122,904 @@ Seoul 10500
 Amsterdam 17000
 `;
 
-const norm = s => (s || '').trim().toLowerCase();
-const t2m = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
-const addDays = (d,delta)=>{ const [day,mon,yr]=d.split('/').map(Number); const x=new Date(Date.UTC(yr,mon-1,day)); x.setUTCDate(x.getUTCDate()+delta); return `${x.getUTCDate()}/${x.getUTCMonth()+1}/${x.getUTCFullYear()}`; };
-const inRange=(target,base)=>[addDays(base,-1),base,addDays(base,1)].includes(target);
-const flightDuration=(dep,arr)=>{let a=t2m(arr),d=t2m(dep); if(a<d)a+=1440; return a-d;};
-const transitMinutes=(f1,f2)=>{const a=t2m(f1.arrivalTime),d=t2m(f2.departureTime); if(f2.date===f1.date) return d-a; if(f2.date===addDays(f1.date,1)) return (1440-a)+d; return -1;};
-const hotelCharge=(hours,perDay)=>hours>12?(hours/24)*perDay:0;
+const normalizeCityName = (value) => (value || '').trim().toLowerCase();
+const formatCityName = (value) =>
+  value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
 
-function initData(){
-  if(!localStorage.getItem(FLIGHTS_KEY)){
-    const flights=[]; flightsSeed.split('\n').forEach(line=>{const p=line.trim().split(/\s+/); if(p.length>=7 && !isNaN(Number(p[5]))) flights.push({origin:norm(p[0]),destination:norm(p[1]),date:p[2],departureTime:p[3],arrivalTime:p[4],ticketPrice:Number(p[5]),airline:p.slice(6).join(' ')});});
-    localStorage.setItem(FLIGHTS_KEY,JSON.stringify(flights));
+const timeToMinutes = (timeStr) => {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+};
+
+const minutesToTime = (minutes) => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+};
+
+const isValidTime = (timeStr) => {
+  if (timeStr.length !== 5 || timeStr[2] !== ':') {
+    return false;
   }
-  if(!localStorage.getItem(CITIES_KEY)){
-    const cities={}; citySeed.split('\n').forEach(l=>{const p=l.trim().split(/\s+/); if(p.length===2) cities[norm(p[0])]=Number(p[1]);});
-    localStorage.setItem(CITIES_KEY,JSON.stringify(cities));
+  const parts = timeStr.split(':');
+  if (parts.length !== 2 || parts.some((part) => !/^\d+$/.test(part))) {
+    return false;
   }
-  if(!localStorage.getItem(RES_KEY)) localStorage.setItem(RES_KEY,'[]');
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
+};
+
+const isValidCityName = (name) => !!name && /^[a-zA-Z]+$/.test(name);
+
+const parseDate = (dateStr) => {
+  const [day, month, year] = dateStr.split('/').map(Number);
+  return { day, month, year };
+};
+
+const isLeapYear = (year) =>
+  year % 400 === 0 || (year % 4 === 0 && year % 100 !== 0);
+
+const daysInMonth = (month, year) => {
+  const days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (month === 2 && isLeapYear(year)) {
+    return 29;
+  }
+  return days[month - 1];
+};
+
+const isValidDate = (dateStr) => {
+  const parts = parseDate(dateStr);
+  if (!parts.day || !parts.month || !parts.year) {
+    return false;
+  }
+  if (parts.month < 1 || parts.month > 12 || parts.day < 1) {
+    return false;
+  }
+  return parts.day <= daysInMonth(parts.month, parts.year);
+};
+
+const daysBeforeYear = (year) =>
+  year * 365 + Math.floor(year / 4) - Math.floor(year / 100) + Math.floor(year / 400);
+
+const dateToSerial = (parts) => {
+  const cumulativeDays = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+  let days = daysBeforeYear(parts.year);
+  days += cumulativeDays[parts.month - 1];
+  if (parts.month > 2 && isLeapYear(parts.year)) {
+    days += 1;
+  }
+  days += parts.day - 1;
+  return days;
+};
+
+const serialToDate = (serial) => {
+  let low = 0;
+  let high = 10000;
+  while (low + 1 < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (daysBeforeYear(mid) <= serial) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+  const year = low;
+  let dayOfYear = serial - daysBeforeYear(year);
+  let month = 1;
+  while (month <= 12) {
+    const dim = daysInMonth(month, year);
+    if (dayOfYear < dim) {
+      break;
+    }
+    dayOfYear -= dim;
+    month += 1;
+  }
+  return { day: dayOfYear + 1, month, year };
+};
+
+const formatDate = (parts) => `${parts.day}/${parts.month}/${parts.year}`;
+
+const addDaysToDate = (date, days) => {
+  const parts = parseDate(date);
+  const serial = dateToSerial(parts) + days;
+  return formatDate(serialToDate(serial));
+};
+
+const isDateInRange = (targetDate, baseDate, daysBefore, daysAfter) => {
+  const targetSerial = dateToSerial(parseDate(targetDate));
+  const baseSerial = dateToSerial(parseDate(baseDate));
+  return targetSerial >= baseSerial - daysBefore && targetSerial <= baseSerial + daysAfter;
+};
+
+const calculateFlightDuration = (departureTime, arrivalTime) => {
+  let depMinutes = timeToMinutes(departureTime);
+  let arrMinutes = timeToMinutes(arrivalTime);
+  if (arrMinutes < depMinutes) {
+    arrMinutes += 24 * 60;
+  }
+  return arrMinutes - depMinutes;
+};
+
+const calculateHotelCharge = (transitHours, hotelChargePerDay) => {
+  if (transitHours > 12) {
+    return (transitHours / 24) * hotelChargePerDay;
+  }
+  return 0;
+};
+
+const calculateTransitMinutes = (first, second) => {
+  const arrivalMinutes = timeToMinutes(first.arrivalTime);
+  const departureMinutes = timeToMinutes(second.departureTime);
+  if (second.date === first.date) {
+    return departureMinutes - arrivalMinutes;
+  }
+  if (second.date === addDaysToDate(first.date, 1)) {
+    return (24 * 60 - arrivalMinutes) + departureMinutes;
+  }
+  return -1;
+};
+
+const parseFlightLine = (line) => {
+  const tokens = line.trim().split(/\s+/);
+  if (tokens.length < 6) {
+    return null;
+  }
+  const [origin, destination, date, departureTime, arrivalTime, ...rest] = tokens;
+  if (rest.length === 0) {
+    return null;
+  }
+  let ticketPrice = 0;
+  let airline = '';
+  if (rest.length >= 2) {
+    ticketPrice = Number(rest[0]);
+    if (Number.isNaN(ticketPrice)) {
+      ticketPrice = 0;
+    }
+    airline = rest.slice(1).join(' ');
+  } else {
+    airline = rest[0];
+  }
+  return {
+    origin: normalizeCityName(origin),
+    destination: normalizeCityName(destination),
+    date,
+    departureTime,
+    arrivalTime,
+    ticketPrice,
+    airline,
+  };
+};
+
+const isDuplicateFlight = (flights, flight) =>
+  flights.some(
+    (existing) =>
+      existing.origin === flight.origin &&
+      existing.destination === flight.destination &&
+      existing.date === flight.date &&
+      existing.departureTime === flight.departureTime &&
+      existing.arrivalTime === flight.arrivalTime &&
+      existing.ticketPrice === flight.ticketPrice &&
+      existing.airline === flight.airline,
+  );
+
+const loadSeedFlights = () =>
+  flightsSeed
+    .split('\n')
+    .map((line) => parseFlightLine(line))
+    .filter(Boolean);
+
+const loadSeedCities = () => {
+  const cities = {};
+  citySeed.split('\n').forEach((line) => {
+    const tokens = line.trim().split(/\s+/);
+    if (tokens.length === 2) {
+      cities[normalizeCityName(tokens[0])] = Number(tokens[1]);
+    }
+  });
+  return cities;
+};
+
+const mergeFlights = (existing, seeds) => {
+  const merged = [...existing];
+  seeds.forEach((flight) => {
+    if (!isDuplicateFlight(merged, flight)) {
+      merged.push(flight);
+    }
+  });
+  return merged;
+};
+
+const mergeCities = (existing, seeds) => {
+  const merged = { ...existing };
+  Object.keys(seeds).forEach((city) => {
+    if (!(city in merged)) {
+      merged[city] = seeds[city];
+    }
+  });
+  return merged;
+};
+
+function initData() {
+  const seedFlights = loadSeedFlights();
+  const seedCities = loadSeedCities();
+  const storedFlights = JSON.parse(localStorage.getItem(FLIGHTS_KEY) || '[]');
+  const storedCities = JSON.parse(localStorage.getItem(CITIES_KEY) || '{}');
+  const seedVersion = localStorage.getItem(SEED_VERSION_KEY);
+
+  if (!localStorage.getItem(FLIGHTS_KEY)) {
+    localStorage.setItem(FLIGHTS_KEY, JSON.stringify(seedFlights));
+  } else if (seedVersion !== SEED_VERSION) {
+    localStorage.setItem(FLIGHTS_KEY, JSON.stringify(mergeFlights(storedFlights, seedFlights)));
+  }
+
+  if (!localStorage.getItem(CITIES_KEY)) {
+    localStorage.setItem(CITIES_KEY, JSON.stringify(seedCities));
+  } else if (seedVersion !== SEED_VERSION) {
+    localStorage.setItem(CITIES_KEY, JSON.stringify(mergeCities(storedCities, seedCities)));
+  }
+
+  if (!localStorage.getItem(RES_KEY)) {
+    localStorage.setItem(RES_KEY, '[]');
+  }
+
+  localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
 }
-const getFlights=()=>JSON.parse(localStorage.getItem(FLIGHTS_KEY)||'[]');
-const getCities=()=>JSON.parse(localStorage.getItem(CITIES_KEY)||'{}');
-const saveFlights=f=>localStorage.setItem(FLIGHTS_KEY,JSON.stringify(f));
-const getRes=()=>JSON.parse(localStorage.getItem(RES_KEY)||'[]');
-const saveRes=r=>localStorage.setItem(RES_KEY,JSON.stringify(r));
 
-function queryJourneys(origin,destination,date,{airline='',transit=''}={}){/* ... */
-const flights=getFlights(), cities=getCities(), results=[]; const visited=new Set([origin]); const hasOnDate=flights.some(f=>f.origin===origin&&f.date===date); const allowRange=!hasOnDate;
-function dfs(city,path,cost,flightMin,transitMin,transitSatisfied){ if(city===destination&&path.length){if(transit&&!transitSatisfied)return;results.push({flights:[...path],totalCost:cost,totalTransitTime:transitMin,totalTravelTime:flightMin+transitMin});return;}
-for(const f of flights.filter(x=>x.origin===city)){ if(airline&&f.airline!==airline)continue; if(visited.has(f.destination))continue; let addTransit=0,nextTS=transitSatisfied; if(path.length===0){ if(allowRange?!inRange(f.date,date):f.date!==date)continue; } else { addTransit=transitMinutes(path[path.length-1],f); if(addTransit<0)continue; if(transit&&city===transit)nextTS=true; } const hours=Math.ceil(addTransit/60); const hCharge=addTransit>0?hotelCharge(hours,cities[city]||0):0; visited.add(f.destination); path.push(f); dfs(f.destination,path,cost+f.ticketPrice+hCharge,flightMin+flightDuration(f.departureTime,f.arrivalTime),transitMin+addTransit,nextTS); path.pop(); visited.delete(f.destination); } }
-dfs(origin,[],0,0,0,false); return results; }
+const getFlights = () => JSON.parse(localStorage.getItem(FLIGHTS_KEY) || '[]');
+const saveFlights = (flights) =>
+  localStorage.setItem(FLIGHTS_KEY, JSON.stringify(flights));
+const getCities = () => JSON.parse(localStorage.getItem(CITIES_KEY) || '{}');
+const getReservations = () => JSON.parse(localStorage.getItem(RES_KEY) || '[]');
+const saveReservations = (reservations) =>
+  localStorage.setItem(RES_KEY, JSON.stringify(reservations));
 
-function renderFlightsTable(f){ return f.length?`<table><tr><th>Origin</th><th>Destination</th><th>Date</th><th>Dep</th><th>Arr</th><th>Price</th><th>Airline</th></tr>${f.map(x=>`<tr><td>${x.origin}</td><td>${x.destination}</td><td>${x.date}</td><td>${x.departureTime}</td><td>${x.arrivalTime}</td><td>${x.ticketPrice}</td><td>${x.airline}</td></tr>`).join('')}</table>`:'No records'; }
-function renderJourneys(j){return j.length?j.map((x,i)=>`<div class='journey'><b>Journey ${i+1}</b> | Cost ${x.totalCost.toFixed(2)} | Travel ${x.totalTravelTime} mins | Transit ${x.totalTransitTime} mins${renderFlightsTable(x.flights)}</div>`).join(''):'No journeys';}
+const getCityCount = () => {
+  const cities = new Set(Object.keys(getCities()));
+  getFlights().forEach((flight) => {
+    cities.add(flight.origin);
+    cities.add(flight.destination);
+  });
+  return cities.size;
+};
+
+const getDirectFlights = (origin, destination) =>
+  getFlights().filter(
+    (flight) => flight.origin === origin && flight.destination === destination,
+  );
+
+const getDirectFlightsOnDate = (origin, destination, date) =>
+  getDirectFlights(origin, destination).filter((flight) => flight.date === date);
+
+const getDirectFlightsWithDateRange = (origin, destination, date) => {
+  const exact = getDirectFlightsOnDate(origin, destination, date);
+  if (exact.length) {
+    return exact;
+  }
+  const previous = getDirectFlightsOnDate(origin, destination, addDaysToDate(date, -1));
+  const next = getDirectFlightsOnDate(origin, destination, addDaysToDate(date, 1));
+  return [...previous, ...next];
+};
+
+const hasFlightsOnDate = (origin, date) =>
+  getFlights().some((flight) => flight.origin === origin && flight.date === date);
+
+const searchJourneysRecursive = (
+  currentCity,
+  destination,
+  baseDate,
+  remainingLegs,
+  currentPath,
+  currentCost,
+  currentFlightMinutes,
+  currentTransitMinutes,
+  visitedCities,
+  transitConstraint,
+  airlineConstraint,
+  transitSatisfied,
+  allowDateRange,
+  results,
+) => {
+  if (currentCity === destination && currentPath.length > 0) {
+    if (transitConstraint?.enabled && !transitSatisfied) {
+      return;
+    }
+    results.push({
+      flights: [...currentPath],
+      totalCost: currentCost,
+      totalTransitTime: currentTransitMinutes,
+      totalTravelTime: currentFlightMinutes + currentTransitMinutes,
+    });
+    return;
+  }
+
+  if (remainingLegs === 0) {
+    return;
+  }
+
+  const outgoing = getFlights().filter((flight) => flight.origin === currentCity);
+  for (const flight of outgoing) {
+    if (airlineConstraint?.enabled && flight.airline !== airlineConstraint.airline) {
+      continue;
+    }
+    if (visitedCities.has(flight.destination)) {
+      continue;
+    }
+
+    let addedTransit = 0;
+    let nextTransitSatisfied = transitSatisfied;
+
+    if (currentPath.length === 0) {
+      if (allowDateRange) {
+        if (!isDateInRange(flight.date, baseDate, 1, 1)) {
+          continue;
+        }
+      } else if (flight.date !== baseDate) {
+        continue;
+      }
+    } else {
+      addedTransit = calculateTransitMinutes(
+        currentPath[currentPath.length - 1],
+        flight,
+      );
+      if (addedTransit < 0) {
+        continue;
+      }
+      if (transitConstraint?.enabled && currentCity === transitConstraint.city) {
+        const minMinutes = transitConstraint.minHours >= 0 ? transitConstraint.minHours * 60 : 0;
+        const maxMinutes = transitConstraint.maxHours >= 0 ? transitConstraint.maxHours * 60 : -1;
+        if (addedTransit < minMinutes) {
+          continue;
+        }
+        if (maxMinutes >= 0 && addedTransit > maxMinutes) {
+          continue;
+        }
+        nextTransitSatisfied = true;
+      }
+    }
+
+    const flightDuration = calculateFlightDuration(flight.departureTime, flight.arrivalTime);
+    let hotelCharge = 0;
+    if (addedTransit > 0) {
+      const transitHours = Math.floor((addedTransit + 59) / 60);
+      const cityCharge = getCities()[currentCity] || 0;
+      hotelCharge = calculateHotelCharge(transitHours, cityCharge);
+    }
+
+    currentPath.push(flight);
+    visitedCities.add(flight.destination);
+
+    searchJourneysRecursive(
+      flight.destination,
+      destination,
+      baseDate,
+      remainingLegs - 1,
+      currentPath,
+      currentCost + flight.ticketPrice + hotelCharge,
+      currentFlightMinutes + flightDuration,
+      currentTransitMinutes + addedTransit,
+      visitedCities,
+      transitConstraint,
+      airlineConstraint,
+      nextTransitSatisfied,
+      allowDateRange,
+      results,
+    );
+
+    visitedCities.delete(flight.destination);
+    currentPath.pop();
+  }
+};
+
+const queryJourneys = (origin, destination, date, maxLegs = getCityCount()) => {
+  const results = [];
+  const visited = new Set([origin]);
+  const allowDateRange = !hasFlightsOnDate(origin, date);
+  searchJourneysRecursive(
+    origin,
+    destination,
+    date,
+    maxLegs,
+    [],
+    0,
+    0,
+    0,
+    visited,
+    null,
+    null,
+    false,
+    allowDateRange,
+    results,
+  );
+  return results;
+};
+
+const queryJourneysWithTransit = (
+  origin,
+  destination,
+  date,
+  maxLegs,
+  transitCity,
+  minTransitHours,
+  maxTransitHours,
+) => {
+  const results = [];
+  const visited = new Set([origin]);
+  const allowDateRange = !hasFlightsOnDate(origin, date);
+  const constraint = {
+    city: transitCity,
+    minHours: minTransitHours,
+    maxHours: maxTransitHours,
+    enabled: !!transitCity,
+  };
+
+  searchJourneysRecursive(
+    origin,
+    destination,
+    date,
+    maxLegs,
+    [],
+    0,
+    0,
+    0,
+    visited,
+    constraint,
+    null,
+    false,
+    allowDateRange,
+    results,
+  );
+  return results;
+};
+
+const queryJourneysWithAirline = (origin, destination, date, maxLegs, airline) => {
+  const results = [];
+  const visited = new Set([origin]);
+  const allowDateRange = !hasFlightsOnDate(origin, date);
+  const constraint = { airline, enabled: !!airline };
+
+  searchJourneysRecursive(
+    origin,
+    destination,
+    date,
+    maxLegs,
+    [],
+    0,
+    0,
+    0,
+    visited,
+    null,
+    constraint,
+    false,
+    allowDateRange,
+    results,
+  );
+  return results;
+};
+
+const queryJourneysCombined = (
+  origin,
+  destination,
+  date,
+  maxLegs,
+  airline,
+  transitCity,
+  minTransitHours,
+  maxTransitHours,
+  sortByCost,
+) => {
+  const results = [];
+  const visited = new Set([origin]);
+  const allowDateRange = !hasFlightsOnDate(origin, date);
+  const transitConstraint = {
+    city: transitCity,
+    minHours: minTransitHours,
+    maxHours: maxTransitHours,
+    enabled: !!transitCity,
+  };
+  const airlineConstraint = { airline, enabled: !!airline };
+
+  searchJourneysRecursive(
+    origin,
+    destination,
+    date,
+    maxLegs,
+    [],
+    0,
+    0,
+    0,
+    visited,
+    transitConstraint.enabled ? transitConstraint : null,
+    airlineConstraint.enabled ? airlineConstraint : null,
+    false,
+    allowDateRange,
+    results,
+  );
+
+  if (sortByCost) {
+    sortJourneysByCost(results);
+  } else {
+    sortJourneysByTravelTime(results);
+  }
+  return results;
+};
+
+const queryDirectFlightsSpecificAirline = (origin, destination, date, airline) => {
+  const journeys = queryJourneysWithAirline(origin, destination, date, getCityCount(), airline);
+  sortJourneysByCost(journeys);
+  return journeys;
+};
+
+const queryMinimalTravelTime = (origin, destination, date) => {
+  const journeys = queryJourneys(origin, destination, date, getCityCount());
+  sortJourneysByTravelTime(journeys);
+  return journeys;
+};
+
+const queryConnectingWithTransit = (origin, destination, date, transitLocation) =>
+  queryJourneysWithTransit(
+    origin,
+    destination,
+    date,
+    getCityCount(),
+    transitLocation,
+    -1,
+    -1,
+  );
+
+const queryDirectFlightsOnly = (origin, destination, date) =>
+  getDirectFlightsWithDateRange(origin, destination, date);
+
+const queryJourneysWithinBudget = (origin, destination, date, maxLegs, maxCost) => {
+  const journeys = queryJourneys(origin, destination, date, maxLegs);
+  const filtered = journeys.filter((journey) => journey.totalCost <= maxCost);
+  sortJourneysByCost(filtered);
+  return filtered;
+};
+
+const sortJourneysByCost = (journeys) =>
+  journeys.sort((a, b) => a.totalCost - b.totalCost);
+
+const sortJourneysByTravelTime = (journeys) =>
+  journeys.sort((a, b) => a.totalTravelTime - b.totalTravelTime);
+
+const calculateTotalCost = (journey) =>
+  journey.reduce((sum, flight) => sum + flight.ticketPrice, 0);
+
+const calculateTotalTravelTime = (journey) =>
+  journey.reduce(
+    (sum, flight) =>
+      sum + calculateFlightDuration(flight.departureTime, flight.arrivalTime),
+    0,
+  );
+
+const renderFlightsTable = (flights) => {
+  if (!flights.length) {
+    return '<p class="muted">No flights found.</p>';
+  }
+  const rows = flights
+    .map(
+      (flight) => `<tr>
+    <td>${formatCityName(flight.origin)}</td>
+    <td>${formatCityName(flight.destination)}</td>
+    <td>${flight.date}</td>
+    <td>${flight.departureTime}</td>
+    <td>${flight.arrivalTime}</td>
+    <td>${flight.ticketPrice.toFixed(0)}</td>
+    <td>${flight.airline}</td>
+  </tr>`,
+    )
+    .join('');
+  return `<table>
+    <tr>
+      <th>Origin</th>
+      <th>Destination</th>
+      <th>Date</th>
+      <th>Departure</th>
+      <th>Arrival</th>
+      <th>Price</th>
+      <th>Airline</th>
+    </tr>
+    ${rows}
+  </table>`;
+};
+
+const renderJourneys = (journeys) => {
+  if (!journeys.length) {
+    return '<p class="muted">No journeys found matching criteria.</p>';
+  }
+  return journeys
+    .map(
+      (journey, index) => `<div class="journey">
+        <div class="journey-header">
+          <span>Journey ${index + 1}</span>
+          <span class="pill">Cost: ${journey.totalCost.toFixed(2)}</span>
+          <span class="pill">Travel: ${journey.totalTravelTime} mins</span>
+          <span class="pill">Transit: ${journey.totalTransitTime} mins</span>
+        </div>
+        ${renderFlightsTable(journey.flights)}
+      </div>`,
+    )
+    .join('');
+};
+
+const renderReservationsTable = (reservations) => {
+  if (!reservations.length) {
+    return '<p class="muted">No reservations found.</p>';
+  }
+  const rows = reservations
+    .map(
+      (res) => `<tr>
+    <td>${res.id}</td>
+    <td>${res.passenger}</td>
+    <td>${res.status}</td>
+    <td>${res.journey.totalCost.toFixed(2)}</td>
+    <td>${res.journey.totalTravelTime}</td>
+    <td>${new Date(res.createdAt).toLocaleString()}</td>
+  </tr>`,
+    )
+    .join('');
+  const details = reservations
+    .map(
+      (res) => `<details>
+        <summary>${res.id} · ${res.passenger}</summary>
+        ${renderFlightsTable(res.journey.flights)}
+      </details>`,
+    )
+    .join('');
+  return `<table>
+    <tr>
+      <th>ID</th>
+      <th>Passenger</th>
+      <th>Status</th>
+      <th>Cost</th>
+      <th>Travel Time</th>
+      <th>Created</th>
+    </tr>
+    ${rows}
+  </table>
+  <div class="results">${details}</div>`;
+};
+
+const setMessage = (element, message, isError = false) => {
+  element.textContent = message;
+  element.style.color = isError ? '#c0392b' : '#1b5e20';
+};
 
 initData();
-// handlers
-addFlightForm.onsubmit=e=>{e.preventDefault(); const fd=Object.fromEntries(new FormData(e.target)); const flights=getFlights(); const rec={origin:norm(fd.origin),destination:norm(fd.destination),date:fd.date,departureTime:fd.departureTime,arrivalTime:fd.arrivalTime,ticketPrice:Number(fd.ticketPrice),airline:fd.airline}; const dup=flights.some(f=>JSON.stringify(f)===JSON.stringify(rec)); if(dup) return addFlightMsg.textContent='Duplicate flight rejected.'; flights.push(rec); saveFlights(flights); addFlightMsg.textContent='Flight added.'; e.target.reset();};
-searchFlightForm.onsubmit=e=>{e.preventDefault(); const fd=Object.fromEntries(new FormData(e.target)); const o=norm(fd.origin), d=norm(fd.destination), date=fd.date; let html=''; if(fd.mode==='direct'){ const flights=getFlights().filter(f=>f.origin===o&&f.destination===d&&(f.date===date||f.date===addDays(date,-1)||f.date===addDays(date,1))); html=renderFlightsTable(flights);} else if(fd.mode==='min-time'){ const j=queryJourneys(o,d,date); j.sort((a,b)=>a.totalTravelTime-b.totalTravelTime); html=renderJourneys(j);} else if(fd.mode==='by-airline'){ const j=queryJourneys(o,d,date,{airline:fd.airline}); j.sort((a,b)=>a.totalCost-b.totalCost); html=renderJourneys(j);} else { const j=queryJourneys(o,d,date,{transit:norm(fd.transit)}); html=renderJourneys(j);} searchResult.innerHTML=html; };
-bookForm.onsubmit=e=>{e.preventDefault(); const fd=Object.fromEntries(new FormData(e.target)); const j=queryJourneys(norm(fd.origin),norm(fd.destination),fd.date); j.sort((a,b)=>a.totalCost-b.totalCost); if(!j.length){bookMsg.textContent='No itinerary found.';return;} const res=getRes(); const id='RSV-'+Date.now(); res.push({id,passenger:fd.passenger,status:'BOOKED',journey:j[0],createdAt:new Date().toISOString()}); saveRes(res); bookMsg.textContent=`Booked. Reservation ID: ${id}`; e.target.reset(); };
-cancelForm.onsubmit=e=>{e.preventDefault(); const fd=Object.fromEntries(new FormData(e.target)); const res=getRes(); const r=res.find(x=>x.id===fd.reservationId); if(!r){cancelMsg.textContent='Reservation not found.';return;} r.status='CANCELLED'; saveRes(res); cancelMsg.textContent='Reservation cancelled.'; };
-viewFlightsBtn.onclick=()=>records.innerHTML=renderFlightsTable(getFlights());
-viewReservationsBtn.onclick=()=>{const rows=getRes().map(r=>`<tr><td>${r.id}</td><td>${r.passenger}</td><td>${r.status}</td><td>${r.journey.totalCost.toFixed(2)}</td><td>${r.journey.totalTravelTime}</td></tr>`).join(''); records.innerHTML=`<table><tr><th>ID</th><th>Passenger</th><th>Status</th><th>Cost</th><th>Travel Time</th></tr>${rows}</table>`;};
+
+const addFlightForm = document.getElementById('addFlightForm');
+const addFlightMsg = document.getElementById('addFlightMsg');
+const searchFlightForm = document.getElementById('searchFlightForm');
+const searchResult = document.getElementById('searchResult');
+const bookForm = document.getElementById('bookForm');
+const bookMsg = document.getElementById('bookMsg');
+const bookResult = document.getElementById('bookResult');
+const cancelForm = document.getElementById('cancelForm');
+const cancelMsg = document.getElementById('cancelMsg');
+const viewFlightsBtn = document.getElementById('viewFlightsBtn');
+const viewReservationsBtn = document.getElementById('viewReservationsBtn');
+const records = document.getElementById('records');
+const modeSelect = document.getElementById('search-mode');
+const modeFields = document.querySelectorAll('[data-modes]');
+
+const updateModeFields = () => {
+  const mode = modeSelect.value;
+  modeFields.forEach((field) => {
+    const modes = field.dataset.modes.split(',').map((val) => val.trim());
+    field.classList.toggle('hidden', !modes.includes(mode));
+  });
+};
+
+updateModeFields();
+modeSelect.addEventListener('change', updateModeFields);
+
+addFlightForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = Object.fromEntries(new FormData(event.target));
+  if (!isValidCityName(formData.origin) || !isValidCityName(formData.destination)) {
+    setMessage(addFlightMsg, 'Invalid origin or destination. Use letters only.', true);
+    return;
+  }
+  if (!isValidDate(formData.date)) {
+    setMessage(addFlightMsg, 'Invalid date. Use d/m/yyyy.', true);
+    return;
+  }
+  if (!isValidTime(formData.departureTime) || !isValidTime(formData.arrivalTime)) {
+    setMessage(addFlightMsg, 'Invalid time format. Use HH:MM.', true);
+    return;
+  }
+
+  const flights = getFlights();
+  const record = {
+    origin: normalizeCityName(formData.origin),
+    destination: normalizeCityName(formData.destination),
+    date: formData.date,
+    departureTime: formData.departureTime,
+    arrivalTime: formData.arrivalTime,
+    ticketPrice: formData.ticketPrice ? Number(formData.ticketPrice) : 0,
+    airline: formData.airline.trim(),
+  };
+
+  if (Number.isNaN(record.ticketPrice) || record.ticketPrice < 0) {
+    setMessage(addFlightMsg, 'Ticket price must be a positive number.', true);
+    return;
+  }
+
+  if (isDuplicateFlight(flights, record)) {
+    setMessage(addFlightMsg, 'Duplicate flight rejected.', true);
+    return;
+  }
+  flights.push(record);
+  saveFlights(flights);
+  setMessage(addFlightMsg, 'Flight added successfully.');
+  event.target.reset();
+});
+
+searchFlightForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = Object.fromEntries(new FormData(event.target));
+  if (!isValidCityName(formData.origin) || !isValidCityName(formData.destination)) {
+    setMessage(searchResult, 'Invalid origin or destination. Use letters only.', true);
+    return;
+  }
+  if (!isValidDate(formData.date)) {
+    setMessage(searchResult, 'Invalid date. Use d/m/yyyy.', true);
+    return;
+  }
+  const origin = normalizeCityName(formData.origin);
+  const destination = normalizeCityName(formData.destination);
+  const date = formData.date;
+
+  let output = '';
+  if (formData.mode === 'direct') {
+    const flights = queryDirectFlightsOnly(origin, destination, date);
+    output = renderFlightsTable(flights);
+  } else if (formData.mode === 'by-airline') {
+    if (!formData.airline) {
+      setMessage(searchResult, 'Airline is required for this scenario.', true);
+      return;
+    }
+    const journeys = queryDirectFlightsSpecificAirline(
+      origin,
+      destination,
+      date,
+      formData.airline.trim(),
+    );
+    output = renderJourneys(journeys);
+  } else if (formData.mode === 'min-time') {
+    const journeys = queryMinimalTravelTime(origin, destination, date);
+    output = renderJourneys(journeys);
+  } else if (formData.mode === 'with-transit') {
+    if (!formData.transit || !isValidCityName(formData.transit)) {
+      setMessage(searchResult, 'Valid transit city is required.', true);
+      return;
+    }
+    const journeys = queryConnectingWithTransit(
+      origin,
+      destination,
+      date,
+      normalizeCityName(formData.transit),
+    );
+    output = renderJourneys(journeys);
+  } else if (formData.mode === 'transit-range') {
+    if (!formData.transit || !isValidCityName(formData.transit)) {
+      setMessage(searchResult, 'Valid transit city is required.', true);
+      return;
+    }
+    const minHours = formData.minTransit ? Number(formData.minTransit) : 0;
+    const maxHours = formData.maxTransit ? Number(formData.maxTransit) : 0;
+    if (Number.isNaN(minHours) || Number.isNaN(maxHours)) {
+      setMessage(searchResult, 'Transit hours must be numeric.', true);
+      return;
+    }
+    const journeys = queryJourneysWithTransit(
+      origin,
+      destination,
+      date,
+      getCityCount(),
+      normalizeCityName(formData.transit),
+      minHours,
+      maxHours,
+    );
+    sortJourneysByTravelTime(journeys);
+    output = renderJourneys(journeys);
+  } else if (formData.mode === 'budget') {
+    const maxCost = Number(formData.maxCost);
+    if (!formData.maxCost || Number.isNaN(maxCost) || maxCost < 0) {
+      setMessage(searchResult, 'Valid max total cost is required.', true);
+      return;
+    }
+    const journeys = queryJourneysWithinBudget(origin, destination, date, getCityCount(), maxCost);
+    output = renderJourneys(journeys);
+  } else if (formData.mode === 'combined') {
+    const airline = formData.airline ? formData.airline.trim() : '';
+    const transit = formData.transit ? normalizeCityName(formData.transit) : '';
+    const minHours = formData.minTransit ? Number(formData.minTransit) : -1;
+    const maxHours = formData.maxTransit ? Number(formData.maxTransit) : -1;
+    if (transit && !isValidCityName(transit)) {
+      setMessage(searchResult, 'Valid transit city is required.', true);
+      return;
+    }
+    const journeys = queryJourneysCombined(
+      origin,
+      destination,
+      date,
+      getCityCount(),
+      airline,
+      transit,
+      minHours,
+      maxHours,
+      formData.sortBy === 'cost',
+    );
+    output = renderJourneys(journeys);
+  }
+
+  searchResult.style.color = '';
+  searchResult.innerHTML = output;
+});
+
+bookForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = Object.fromEntries(new FormData(event.target));
+  if (!isValidCityName(formData.origin) || !isValidCityName(formData.destination)) {
+    setMessage(bookMsg, 'Invalid origin or destination. Use letters only.', true);
+    return;
+  }
+  if (!isValidDate(formData.date)) {
+    setMessage(bookMsg, 'Invalid date. Use d/m/yyyy.', true);
+    return;
+  }
+  const journeys = queryJourneys(
+    normalizeCityName(formData.origin),
+    normalizeCityName(formData.destination),
+    formData.date,
+    getCityCount(),
+  );
+  sortJourneysByCost(journeys);
+  if (!journeys.length) {
+    setMessage(bookMsg, 'No itinerary found for booking.', true);
+    bookResult.innerHTML = '';
+    return;
+  }
+  const reservations = getReservations();
+  const id = `RSV-${Date.now()}`;
+  reservations.push({
+    id,
+    passenger: formData.passenger.trim(),
+    status: 'BOOKED',
+    journey: journeys[0],
+    createdAt: new Date().toISOString(),
+  });
+  saveReservations(reservations);
+  setMessage(bookMsg, `Reservation confirmed. ID: ${id}`);
+  bookResult.innerHTML = renderJourneys([journeys[0]]);
+  event.target.reset();
+});
+
+cancelForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = Object.fromEntries(new FormData(event.target));
+  const reservations = getReservations();
+  const reservation = reservations.find((res) => res.id === formData.reservationId);
+  if (!reservation) {
+    setMessage(cancelMsg, 'Reservation not found.', true);
+    return;
+  }
+  if (reservation.status === 'CANCELLED') {
+    setMessage(cancelMsg, 'Reservation already cancelled.', true);
+    return;
+  }
+  reservation.status = 'CANCELLED';
+  saveReservations(reservations);
+  setMessage(cancelMsg, 'Reservation cancelled successfully.');
+  event.target.reset();
+});
+
+viewFlightsBtn.addEventListener('click', () => {
+  records.innerHTML = renderFlightsTable(getFlights());
+});
+
+viewReservationsBtn.addEventListener('click', () => {
+  records.innerHTML = renderReservationsTable(getReservations());
+});

@@ -1,78 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Airline Reservation System</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <header class="hero">
-    <h1>✈ Airline Reservation System</h1>
-    <p>Flight Management • Reservation System • Records Display</p>
-  </header>
-
-  <main class="container">
-    <section class="card">
-      <h2>Flight Management</h2>
-      <form id="addFlightForm" class="grid">
-        <input name="origin" placeholder="Origin" required />
-        <input name="destination" placeholder="Destination" required />
-        <input name="date" placeholder="d/m/yyyy" required />
-        <input name="departureTime" placeholder="HH:MM" required />
-        <input name="arrivalTime" placeholder="HH:MM" required />
-        <input name="ticketPrice" type="number" min="0" step="0.01" placeholder="Price" required />
-        <input name="airline" placeholder="Airline" required />
-        <button type="submit">Add Flight</button>
-      </form>
-      <div id="addFlightMsg" class="msg"></div>
-
-      <h3>Search Flight</h3>
-      <form id="searchFlightForm" class="grid">
-        <input name="origin" placeholder="Origin" required />
-        <input name="destination" placeholder="Destination" required />
-        <input name="date" placeholder="d/m/yyyy" required />
-        <select name="mode">
-          <option value="direct">Direct (±1 day fallback)</option>
-          <option value="min-time">Minimal travel time</option>
-          <option value="by-airline">Specific airline (cost)</option>
-          <option value="with-transit">With transit city</option>
-        </select>
-        <input name="airline" placeholder="Airline (if applicable)" />
-        <input name="transit" placeholder="Transit city (if applicable)" />
-        <button type="submit">Search</button>
-      </form>
-      <div id="searchResult"></div>
-    </section>
-
-    <section class="card">
-      <h2>Reservation System</h2>
-      <form id="bookForm" class="grid">
-        <input name="passenger" placeholder="Passenger Name" required />
-        <input name="origin" placeholder="Origin" required />
-        <input name="destination" placeholder="Destination" required />
-        <input name="date" placeholder="d/m/yyyy" required />
-        <button type="submit">Book Reservation (Best by Cost)</button>
-      </form>
-      <div id="bookMsg" class="msg"></div>
-
-      <form id="cancelForm" class="grid inline">
-        <input name="reservationId" placeholder="Reservation ID" required />
-        <button type="submit">Cancel Reservation</button>
-      </form>
-      <div id="cancelMsg" class="msg"></div>
-    </section>
-
-    <section class="card">
-      <h2>Records Display</h2>
-      <div class="actions">
-        <button id="viewFlightsBtn">View All Flights</button>
-        <button id="viewReservationsBtn">View All Reservations</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Airline Reservation System</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero-content">
+        <div class="hero-badge">✈ Airline Reservation System</div>
+        <h1>Book, Manage, and Explore Journeys</h1>
+        <p>
+          Flight Management · Reservation System · Records Display
+        </p>
       </div>
-      <div id="records"></div>
-    </section>
-  </main>
+      <div class="hero-plane" aria-hidden="true">✈</div>
+    </header>
 
-  <script src="script.js"></script>
-</body>
+    <main class="container">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>Flight Management</h2>
+            <p class="muted">Add new flights and explore available routes.</p>
+          </div>
+        </div>
+
+        <form id="addFlightForm" class="form-grid">
+          <div class="field">
+            <label for="add-origin">Origin</label>
+            <input id="add-origin" name="origin" placeholder="Islamabad" required />
+          </div>
+          <div class="field">
+            <label for="add-destination">Destination</label>
+            <input id="add-destination" name="destination" placeholder="Newyork" required />
+          </div>
+          <div class="field">
+            <label for="add-date">Date (d/m/yyyy)</label>
+            <input id="add-date" name="date" placeholder="1/12/2019" required />
+          </div>
+          <div class="field">
+            <label for="add-departure">Departure (HH:MM)</label>
+            <input id="add-departure" name="departureTime" placeholder="11:00" required />
+          </div>
+          <div class="field">
+            <label for="add-arrival">Arrival (HH:MM)</label>
+            <input id="add-arrival" name="arrivalTime" placeholder="18:00" required />
+          </div>
+          <div class="field">
+            <label for="add-price">Ticket Price</label>
+            <input id="add-price" name="ticketPrice" type="number" min="0" step="0.01" placeholder="150000" />
+          </div>
+          <div class="field">
+            <label for="add-airline">Airline</label>
+            <input id="add-airline" name="airline" placeholder="Emirates" required />
+          </div>
+          <button type="submit" class="btn-primary">Add Flight</button>
+        </form>
+        <div id="addFlightMsg" class="msg"></div>
+
+        <div class="divider"></div>
+
+        <h3>Search Flights</h3>
+        <form id="searchFlightForm" class="form-grid">
+          <div class="field">
+            <label for="search-origin">Origin</label>
+            <input id="search-origin" name="origin" placeholder="Islamabad" required />
+          </div>
+          <div class="field">
+            <label for="search-destination">Destination</label>
+            <input id="search-destination" name="destination" placeholder="Tokyo" required />
+          </div>
+          <div class="field">
+            <label for="search-date">Date (d/m/yyyy)</label>
+            <input id="search-date" name="date" placeholder="1/12/2019" required />
+          </div>
+          <div class="field">
+            <label for="search-mode">Scenario</label>
+            <select id="search-mode" name="mode">
+              <option value="direct">Direct flights only (±1 day fallback)</option>
+              <option value="by-airline">Direct flights by airline</option>
+              <option value="min-time">All journeys (minimal travel time)</option>
+              <option value="with-transit">Connecting via transit city</option>
+              <option value="transit-range">Transit city with min/max hours</option>
+              <option value="budget">Journeys within budget</option>
+              <option value="combined">Combined filters</option>
+            </select>
+          </div>
+
+          <div class="field" data-modes="by-airline,combined">
+            <label for="search-airline">Airline</label>
+            <input id="search-airline" name="airline" placeholder="Emirates" />
+          </div>
+          <div class="field" data-modes="with-transit,transit-range,combined">
+            <label for="search-transit">Transit City</label>
+            <input id="search-transit" name="transit" placeholder="Paris" />
+          </div>
+          <div class="field" data-modes="transit-range,combined">
+            <label for="search-min-transit">Min Transit Hours</label>
+            <input id="search-min-transit" name="minTransit" type="number" min="0" step="1" placeholder="2" />
+          </div>
+          <div class="field" data-modes="transit-range,combined">
+            <label for="search-max-transit">Max Transit Hours</label>
+            <input id="search-max-transit" name="maxTransit" type="number" min="0" step="1" placeholder="8" />
+          </div>
+          <div class="field" data-modes="budget">
+            <label for="search-budget">Max Total Cost</label>
+            <input id="search-budget" name="maxCost" type="number" min="0" step="1" placeholder="200000" />
+          </div>
+          <div class="field" data-modes="combined">
+            <label for="search-sort">Sort By</label>
+            <select id="search-sort" name="sortBy">
+              <option value="cost">Cost</option>
+              <option value="time">Travel Time</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn-primary">Search</button>
+        </form>
+        <div id="searchResult" class="results"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>Reservation System</h2>
+            <p class="muted">Book best-value journeys and manage reservations.</p>
+          </div>
+        </div>
+
+        <form id="bookForm" class="form-grid">
+          <div class="field">
+            <label for="book-passenger">Passenger Name</label>
+            <input id="book-passenger" name="passenger" placeholder="Aisha Khan" required />
+          </div>
+          <div class="field">
+            <label for="book-origin">Origin</label>
+            <input id="book-origin" name="origin" placeholder="Islamabad" required />
+          </div>
+          <div class="field">
+            <label for="book-destination">Destination</label>
+            <input id="book-destination" name="destination" placeholder="Tokyo" required />
+          </div>
+          <div class="field">
+            <label for="book-date">Date (d/m/yyyy)</label>
+            <input id="book-date" name="date" placeholder="1/12/2019" required />
+          </div>
+          <button type="submit" class="btn-primary">Book Best by Cost</button>
+        </form>
+        <div id="bookMsg" class="msg"></div>
+        <div id="bookResult" class="results"></div>
+
+        <div class="divider"></div>
+
+        <form id="cancelForm" class="form-grid inline">
+          <div class="field">
+            <label for="cancel-id">Reservation ID</label>
+            <input id="cancel-id" name="reservationId" placeholder="RSV-12345" required />
+          </div>
+          <button type="submit" class="btn-secondary">Cancel Reservation</button>
+        </form>
+        <div id="cancelMsg" class="msg"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>Records Display</h2>
+            <p class="muted">Review all stored flights and reservations.</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="viewFlightsBtn" class="btn-secondary">View All Flights</button>
+          <button id="viewReservationsBtn" class="btn-secondary">View All Reservations</button>
+        </div>
+        <div id="records" class="results"></div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
 </html>
