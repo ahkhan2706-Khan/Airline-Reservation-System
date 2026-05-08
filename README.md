@@ -49,6 +49,49 @@ Key capabilities:
 - Automatically expand the date range by ±1 day when no flights exist on the requested date.
 - Charge hotel costs for transits longer than 12 hours.
 
+### 🏗️ System Architecture
+
+```mermaid
+graph TD
+    subgraph Input["📂 Input Files"]
+        FT[Flights.txt]
+        HC[HotelCharges_perday.txt]
+    end
+
+    subgraph Models["📦 Data Models"]
+        FL[Flight]
+        CT[City]
+        DA["DynamicArray&lt;T&gt;"]
+        GN[GraphNode]
+    end
+
+    subgraph Core["⚙️ Core Engine"]
+        FM[FlightManager\nFile I/O & Loading]
+        FG[FlightGraph\nDirected Graph ADT]
+        UT[Utility\nDate & Cost Helpers]
+        RS[ReservationSystem\nRecursive DFS Engine]
+    end
+
+    subgraph Output["🖥️ Output Layer"]
+        WS[WebServer\nHTTP Server :8080]
+        UI[index.html\nBrowser UI]
+        API["REST Endpoints\n/api/min-time\n/api/by-airline\n/api/with-transit\n/api/direct"]
+    end
+
+    FT --> FM
+    HC --> FM
+    FL --> GN
+    CT --> GN
+    DA --> GN
+    FM --> FG
+    GN --> FG
+    FG --> RS
+    UT --> RS
+    RS --> WS
+    WS --> API
+    UI <--> API
+```
+
 ---
 
 ## Features
@@ -119,6 +162,35 @@ A hand-rolled generic resizable array that avoids STL `vector`. Supports:
 - **Edges** — each `GraphNode` stores a `DynamicArray<Flight>` of outgoing flights.
 - Cities and their hotel charges are loaded from `HotelCharges_perday.txt`; edges are added from `Flights.txt`.
 
+**Sample flight network (subset of dataset):**
+
+```mermaid
+graph LR
+    ISL(("🏙️ Islamabad")) -->|Emirates| NYC(("🗽 New York"))
+    ISL -->|Qatar| LDN(("🎡 London"))
+    ISL -->|ANA| TKY(("🗼 Tokyo"))
+    LDN -->|Emirates| PAR(("🥐 Paris"))
+    NYC -->|Qatar| PAR
+    PAR -->|ANA| SGP(("🦁 Singapore"))
+    TKY -->|Qatar| HKG(("🏙️ Hong Kong"))
+    SGP -->|Emirates| HKG
+    HKG -->|ANA| SEL(("🎆 Seoul"))
+    SEL -->|Qatar| AMS(("🌷 Amsterdam"))
+    LDN -->|ANA| BRL(("🏛️ Berlin"))
+    BRL -->|Emirates| AMS
+
+    style ISL fill:#1e6091,color:#fff,stroke:#0d3b66
+    style NYC fill:#d62828,color:#fff,stroke:#a01010
+    style LDN fill:#457b9d,color:#fff,stroke:#1d3557
+    style TKY fill:#e63946,color:#fff,stroke:#c1121f
+    style PAR fill:#6a994e,color:#fff,stroke:#386641
+    style SGP fill:#e76f51,color:#fff,stroke:#c1440e
+    style HKG fill:#9b2226,color:#fff,stroke:#6d1117
+    style SEL fill:#7b2d8b,color:#fff,stroke:#4a1060
+    style AMS fill:#0077b6,color:#fff,stroke:#023e8a
+    style BRL fill:#495057,color:#fff,stroke:#212529
+```
+
 ### Journey Search — Recursive DFS (ReservationSystem)
 
 `searchJourneysRecursive` performs a depth-limited DFS from the origin to the destination:
@@ -128,6 +200,39 @@ A hand-rolled generic resizable array that avoids STL `vector`. Supports:
 3. Optional `TransitConstraint` and `AirlineConstraint` objects are checked at each step.
 4. Transit time between consecutive legs is calculated; hotel charges are added when the layover exceeds 12 hours.
 5. Completed paths are collected and then sorted by cost or travel time using selection sort.
+
+**DFS search flow:**
+
+```mermaid
+flowchart TD
+    START(["🔍 Query\norigin · destination · date"]) --> WINDOW["Build ±1 day\ndate window"]
+    WINDOW --> DIRECT{"Direct flight\nfound?"}
+    DIRECT -- Yes --> RETURN
+    DIRECT -- No --> DFS["🔄 Start Recursive DFS\nvisited = {origin}"]
+    DFS --> DEST{"Current city\n= destination?"}
+    DEST -- Yes --> COLLECT["📋 Record complete\njourney path"]
+    COLLECT --> MORE{"More unvisited\nneighbors?"}
+    MORE -- Yes --> DEPTH
+    MORE -- No --> SORT["📊 Sort results\nby cost or travel time"]
+    SORT --> RETURN(["✅ Return Journeys"])
+    DEST -- No --> DEPTH{"Depth limit\nreached?"}
+    DEPTH -- Yes --> BACK["⏪ Backtrack"]
+    BACK --> MORE
+    DEPTH -- No --> CHECK{"Constraints\nairline · transit · budget"}
+    CHECK -- Failed --> BACK
+    CHECK -- Passed --> HOTEL{"Transit wait\n> 12 hours?"}
+    HOTEL -- Yes --> ADDCOST["🏨 Add hotel charges\nfor transit city"]
+    ADDCOST --> PUSH["➡️ Push city to visited\nRecurse deeper"]
+    HOTEL -- No --> PUSH
+    PUSH --> DEST
+
+    style START fill:#0077b6,color:#fff,stroke:#023e8a
+    style RETURN fill:#2d6a4f,color:#fff,stroke:#1b4332
+    style COLLECT fill:#457b9d,color:#fff,stroke:#1d3557
+    style ADDCOST fill:#e9c46a,color:#1a1a1a,stroke:#f4a261
+    style BACK fill:#e63946,color:#fff,stroke:#c1121f
+    style CHECK fill:#6a994e,color:#fff,stroke:#386641
+```
 
 ### Cost Calculation
 
