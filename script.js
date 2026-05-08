@@ -4,6 +4,18 @@ const CITIES_KEY = 'ars_cities_v1';
 const SEED_VERSION_KEY = 'ars_seed_version_v1';
 const SEED_VERSION = '2026-05-03';
 const NO_TRANSIT_LIMIT = -1;
+const SECURITY_CONFIG = {
+  INITIAL_THREAT_SCORE: 6,
+  MAX_TICKET_PRICE: 500000,
+  SAFE_TEXT_PATTERN: /^[a-zA-Z0-9 .,'-]+$/,
+  MAX_DISPLAYED_ISSUES: 5,
+  MAX_THREAT_SCORE: 100,
+  VALID_RESERVATION_STATUSES: ['BOOKED', 'CANCELLED'],
+  SECURE_MODE_LABELS: {
+    active: 'Disable Secure Mode',
+    inactive: 'Activate Secure Mode',
+  },
+};
 
 const flightsSeed = `Islamabad Newyork 1/12/2019 11:00 18:00 150000 Emirates
 Islamabad Newyork 1/12/2019 8:00 13:00 300000 Qatar
@@ -808,6 +820,96 @@ const validateDateInput = (date, target) => {
   return true;
 };
 
+const generateShieldToken = () => {
+  if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
+    return null;
+  }
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((value) => value.toString(16).padStart(2, '0')).join('').toUpperCase();
+};
+
+const getThreatLevel = (score) => {
+  if (score < 20) return 'Low';
+  if (score < 45) return 'Guarded';
+  if (score < 70) return 'Elevated';
+  return 'Critical';
+};
+
+const threatColorMap = {
+  Low: '#22d3ee',
+  Guarded: '#fbbf24',
+  Elevated: '#fb7185',
+  Critical: '#ff5cff',
+};
+const matchesSafePattern = (value) =>
+  !!value && SECURITY_CONFIG.SAFE_TEXT_PATTERN.test(value.trim());
+
+const runSecurityScan = () => {
+  const flights = getFlights();
+  const reservations = getReservations();
+  let score = SECURITY_CONFIG.INITIAL_THREAT_SCORE;
+  const issues = [];
+  let token = generateShieldToken();
+
+  const pushIssue = (message, weight = 10) => {
+    issues.push(message);
+    score = Math.min(SECURITY_CONFIG.MAX_THREAT_SCORE, score + weight);
+  };
+
+  if (!token) {
+    pushIssue('Shield token unavailable: crypto module missing.', 6);
+    token = 'UNAVAILABLE';
+  }
+
+  flights.forEach((flight, index) => {
+    const label = `Flight ${index + 1}`;
+    if (!isValidCityName(flight.origin)) {
+      pushIssue(`${label}: origin city identifier flagged.`);
+    }
+    if (!isValidCityName(flight.destination)) {
+      pushIssue(`${label}: destination city identifier flagged.`);
+    }
+    if (!isValidDate(flight.date)) {
+      pushIssue(`${label}: invalid date signature.`);
+    }
+    if (!isValidTime(flight.departureTime) || !isValidTime(flight.arrivalTime)) {
+      pushIssue(`${label}: time anomaly flagged.`);
+    }
+    if (
+      Number.isNaN(flight.ticketPrice) ||
+      flight.ticketPrice < 0 ||
+      flight.ticketPrice > SECURITY_CONFIG.MAX_TICKET_PRICE
+    ) {
+      pushIssue(`${label}: ticket price out of policy.`);
+    }
+    if (!matchesSafePattern(flight.airline)) {
+      pushIssue(`${label}: airline field failed sanitization.`);
+    }
+  });
+
+  reservations.forEach((reservation) => {
+    if (!matchesSafePattern(reservation.passenger)) {
+      pushIssue(`Reservation ${reservation.id}: passenger name requires review.`);
+    }
+    if (!SECURITY_CONFIG.VALID_RESERVATION_STATUSES.includes(reservation.status)) {
+      pushIssue(`Reservation ${reservation.id}: status mismatch detected.`);
+    }
+    if (!reservation.journey || !Array.isArray(reservation.journey.flights)) {
+      pushIssue(`Reservation ${reservation.id}: journey payload incomplete.`);
+    }
+  });
+
+  return {
+    score,
+    issues,
+    totalFlights: flights.length,
+    totalReservations: reservations.length,
+    token,
+    threat: getThreatLevel(score),
+  };
+};
+
 initData();
 
 const addFlightForm = document.getElementById('addFlightForm');
@@ -824,6 +926,14 @@ const viewReservationsBtn = document.getElementById('viewReservationsBtn');
 const records = document.getElementById('records');
 const modeSelect = document.getElementById('search-mode');
 const modeFields = document.querySelectorAll('[data-modes]');
+const cyberScanBtn = document.getElementById('cyberScanBtn');
+const cyberModeBtn = document.getElementById('cyberModeBtn');
+const cyberThreat = document.getElementById('cyberThreat');
+const cyberToken = document.getElementById('cyberToken');
+const cyberIntegrity = document.getElementById('cyberIntegrity');
+const cyberScore = document.getElementById('cyberScore');
+const cyberMeterBar = document.getElementById('cyberMeterBar');
+const cyberLog = document.getElementById('cyberLog');
 
 const updateModeFields = () => {
   const mode = modeSelect.value;
@@ -835,6 +945,69 @@ const updateModeFields = () => {
 
 updateModeFields();
 modeSelect.addEventListener('change', updateModeFields);
+
+const renderSecurityLog = (report) => {
+  if (!cyberLog) return;
+  cyberLog.replaceChildren();
+  const summary = document.createElement('div');
+  summary.textContent = `Scan complete: ${report.issues.length} alerts across ${report.totalFlights} flights and ${report.totalReservations} reservations.`;
+  cyberLog.appendChild(summary);
+  if (!report.issues.length) {
+    const ok = document.createElement('div');
+    ok.textContent = '✅ Systems nominal.';
+    cyberLog.appendChild(ok);
+    return;
+  }
+  report.issues
+    .slice(0, SECURITY_CONFIG.MAX_DISPLAYED_ISSUES)
+    .forEach((issue) => {
+      const item = document.createElement('div');
+      item.textContent = `⚠️ ${issue}`;
+      cyberLog.appendChild(item);
+    });
+  if (report.issues.length > SECURITY_CONFIG.MAX_DISPLAYED_ISSUES) {
+    const extra = document.createElement('div');
+    extra.textContent = `+${report.issues.length - SECURITY_CONFIG.MAX_DISPLAYED_ISSUES} more alerts logged.`;
+    cyberLog.appendChild(extra);
+  }
+};
+
+const updateSecurityUI = (report) => {
+  if (cyberThreat) {
+    cyberThreat.textContent = report.threat;
+    cyberThreat.style.color = threatColorMap[report.threat] || '';
+  }
+  if (cyberToken) {
+    cyberToken.textContent = report.token;
+  }
+  if (cyberIntegrity) {
+    cyberIntegrity.textContent = report.issues.length ? 'Watchlist' : 'Verified';
+  }
+  if (cyberScore) {
+    cyberScore.textContent = `${report.score}%`;
+  }
+  if (cyberMeterBar) {
+    cyberMeterBar.style.width = `${report.score}%`;
+  }
+  renderSecurityLog(report);
+};
+
+if (cyberScanBtn) {
+  cyberScanBtn.addEventListener('click', () => {
+    updateSecurityUI(runSecurityScan());
+  });
+  updateSecurityUI(runSecurityScan());
+}
+
+if (cyberModeBtn) {
+  cyberModeBtn.addEventListener('click', () => {
+    document.body.classList.toggle('secure-mode');
+    cyberModeBtn.textContent = document.body.classList.contains('secure-mode')
+      ? SECURITY_CONFIG.SECURE_MODE_LABELS.active
+      : SECURITY_CONFIG.SECURE_MODE_LABELS.inactive;
+  });
+  cyberModeBtn.textContent = SECURITY_CONFIG.SECURE_MODE_LABELS.inactive;
+}
 
 addFlightForm.addEventListener('submit', (event) => {
   event.preventDefault();

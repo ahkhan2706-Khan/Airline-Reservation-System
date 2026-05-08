@@ -19,6 +19,40 @@
     </header>
 
     <main class="container">
+      <section class="card cyber-card">
+        <div class="card-header">
+          <div>
+            <div class="cyber-badge">🛡 Cyber Operations Center</div>
+            <h2 class="cyber-title">Security Pulse & Shield Controls</h2>
+            <p class="muted">
+              Real-time integrity checks, threat scoring, and secure-mode overlays.
+            </p>
+          </div>
+        </div>
+        <div class="cyber-grid">
+          <div class="cyber-stat">
+            <span class="cyber-label">Threat Level</span>
+            <span id="cyberThreat" class="cyber-value">Low</span>
+          </div>
+          <div class="cyber-stat">
+            <span class="cyber-label">Shield Token</span>
+            <span id="cyberToken" class="cyber-value">---</span>
+          </div>
+          <div class="cyber-stat">
+            <span class="cyber-label">Integrity</span>
+            <span id="cyberIntegrity" class="cyber-value">Verified</span>
+          </div>
+        </div>
+        <div class="cyber-meter">
+          <div id="cyberMeterBar" class="cyber-meter-bar"></div>
+          <span id="cyberScore" class="cyber-meter-label">0%</span>
+        </div>
+        <div class="cyber-actions">
+          <button id="cyberScanBtn" class="btn-primary">Run Security Scan</button>
+          <button id="cyberModeBtn" class="btn-secondary">Activate Secure Mode</button>
+        </div>
+        <div id="cyberLog" class="cyber-log"></div>
+      </section>
       <section class="card">
         <div class="card-header">
           <div>
