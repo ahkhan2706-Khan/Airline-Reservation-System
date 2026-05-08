@@ -11,6 +11,10 @@ const SECURITY_CONFIG = {
   MAX_DISPLAYED_ISSUES: 5,
   MAX_THREAT_SCORE: 100,
   VALID_RESERVATION_STATUSES: ['BOOKED', 'CANCELLED'],
+  SECURE_MODE_LABELS: {
+    active: 'Disable Secure Mode',
+    inactive: 'Activate Secure Mode',
+  },
 };
 
 const flightsSeed = `Islamabad Newyork 1/12/2019 11:00 18:00 150000 Emirates
@@ -820,7 +824,7 @@ const generateShieldToken = () => {
   if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
     return null;
   }
-  const bytes = new Uint8Array(8);
+  const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   return [...bytes].map((value) => value.toString(16).padStart(2, '0')).join('').toUpperCase();
 };
@@ -838,7 +842,7 @@ const threatColorMap = {
   Elevated: '#fb7185',
   Critical: '#ff5cff',
 };
-const isSafeText = (value) =>
+const matchesSafePattern = (value) =>
   !!value && SECURITY_CONFIG.SAFE_TEXT_PATTERN.test(value.trim());
 
 const runSecurityScan = () => {
@@ -860,8 +864,11 @@ const runSecurityScan = () => {
 
   flights.forEach((flight, index) => {
     const label = `Flight ${index + 1}`;
-    if (!isValidCityName(flight.origin) || !isValidCityName(flight.destination)) {
-      pushIssue(`${label}: suspicious city identifier detected.`);
+    if (!isValidCityName(flight.origin)) {
+      pushIssue(`${label}: origin city identifier flagged.`);
+    }
+    if (!isValidCityName(flight.destination)) {
+      pushIssue(`${label}: destination city identifier flagged.`);
     }
     if (!isValidDate(flight.date)) {
       pushIssue(`${label}: invalid date signature.`);
@@ -876,13 +883,13 @@ const runSecurityScan = () => {
     ) {
       pushIssue(`${label}: ticket price out of policy.`);
     }
-    if (!isSafeText(flight.airline)) {
+    if (!matchesSafePattern(flight.airline)) {
       pushIssue(`${label}: airline field failed sanitization.`);
     }
   });
 
   reservations.forEach((reservation) => {
-    if (!isSafeText(reservation.passenger)) {
+    if (!matchesSafePattern(reservation.passenger)) {
       pushIssue(`Reservation ${reservation.id}: passenger name requires review.`);
     }
     if (!SECURITY_CONFIG.VALID_RESERVATION_STATUSES.includes(reservation.status)) {
@@ -954,10 +961,10 @@ const renderSecurityLog = (report) => {
   report.issues
     .slice(0, SECURITY_CONFIG.MAX_DISPLAYED_ISSUES)
     .forEach((issue) => {
-    const item = document.createElement('div');
-    item.textContent = `⚠️ ${issue}`;
-    cyberLog.appendChild(item);
-  });
+      const item = document.createElement('div');
+      item.textContent = `⚠️ ${issue}`;
+      cyberLog.appendChild(item);
+    });
   if (report.issues.length > SECURITY_CONFIG.MAX_DISPLAYED_ISSUES) {
     const extra = document.createElement('div');
     extra.textContent = `+${report.issues.length - SECURITY_CONFIG.MAX_DISPLAYED_ISSUES} more alerts logged.`;
@@ -996,9 +1003,10 @@ if (cyberModeBtn) {
   cyberModeBtn.addEventListener('click', () => {
     document.body.classList.toggle('secure-mode');
     cyberModeBtn.textContent = document.body.classList.contains('secure-mode')
-      ? 'Disable Secure Mode'
-      : 'Activate Secure Mode';
+      ? SECURITY_CONFIG.SECURE_MODE_LABELS.active
+      : SECURITY_CONFIG.SECURE_MODE_LABELS.inactive;
   });
+  cyberModeBtn.textContent = SECURITY_CONFIG.SECURE_MODE_LABELS.inactive;
 }
 
 addFlightForm.addEventListener('submit', (event) => {
