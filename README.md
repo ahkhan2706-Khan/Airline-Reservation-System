@@ -61,7 +61,7 @@ graph TD
     subgraph Models["📦 Data Models"]
         FL[Flight]
         CT[City]
-        DA["DynamicArray&lt;T&gt;"]
+        DA["DynamicArray<T>"]
         GN[GraphNode]
     end
 
