@@ -830,9 +830,11 @@ const threatColorMap = {
   Elevated: '#fb7185',
   Critical: '#ff5cff',
 };
-const INITIAL_THREAT_SCORE = 6;
-const MAX_TICKET_PRICE = 500000;
+const INITIAL_THREAT_SCORE = 6; // Baseline risk before anomalies are detected.
+const MAX_TICKET_PRICE = 500000; // Policy ceiling for ticket price validation.
 const SAFE_TEXT_PATTERN = /^[a-zA-Z0-9 .,'-]+$/;
+const MAX_DISPLAYED_ISSUES = 5;
+const isSafeText = (value) => !!value && SAFE_TEXT_PATTERN.test(value.trim());
 
 const runSecurityScan = () => {
   const flights = getFlights();
@@ -850,8 +852,6 @@ const runSecurityScan = () => {
     pushIssue('Shield token unavailable: crypto module missing.', 6);
     token = 'UNAVAILABLE';
   }
-
-  const isSafeText = (value) => !!value && SAFE_TEXT_PATTERN.test(value.trim());
 
   flights.forEach((flight, index) => {
     const label = `Flight ${index + 1}`;
@@ -946,14 +946,14 @@ const renderSecurityLog = (report) => {
     cyberLog.appendChild(ok);
     return;
   }
-  report.issues.slice(0, 5).forEach((issue) => {
+  report.issues.slice(0, MAX_DISPLAYED_ISSUES).forEach((issue) => {
     const item = document.createElement('div');
     item.textContent = `⚠️ ${issue}`;
     cyberLog.appendChild(item);
   });
-  if (report.issues.length > 5) {
+  if (report.issues.length > MAX_DISPLAYED_ISSUES) {
     const extra = document.createElement('div');
-    extra.textContent = `+${report.issues.length - 5} more alerts logged.`;
+    extra.textContent = `+${report.issues.length - MAX_DISPLAYED_ISSUES} more alerts logged.`;
     cyberLog.appendChild(extra);
   }
 };
