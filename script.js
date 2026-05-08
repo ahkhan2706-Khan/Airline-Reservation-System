@@ -809,14 +809,11 @@ const validateDateInput = (date, target) => {
 };
 
 const generateShieldToken = () => {
-  const bytes = new Uint8Array(8);
-  if (window.crypto && crypto.getRandomValues) {
-    crypto.getRandomValues(bytes);
-  } else {
-    bytes.forEach((_, index) => {
-      bytes[index] = Math.floor(Math.random() * 256);
-    });
+  if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
+    return null;
   }
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
   return [...bytes].map((value) => value.toString(16).padStart(2, '0')).join('').toUpperCase();
 };
 
@@ -833,19 +830,28 @@ const threatColorMap = {
   Elevated: '#fb7185',
   Critical: '#ff5cff',
 };
-const BASE_SECURITY_SCORE = 6;
+const INITIAL_THREAT_SCORE = 6;
 const MAX_TICKET_PRICE = 500000;
+const SAFE_TEXT_PATTERN = /^[a-zA-Z0-9 .,'-]+$/;
 
 const runSecurityScan = () => {
   const flights = getFlights();
   const reservations = getReservations();
-  let score = BASE_SECURITY_SCORE;
+  let score = INITIAL_THREAT_SCORE;
   const issues = [];
+  let token = generateShieldToken();
 
   const pushIssue = (message, weight = 10) => {
     issues.push(message);
     score = Math.min(100, score + weight);
   };
+
+  if (!token) {
+    pushIssue('Shield token unavailable: crypto module missing.', 6);
+    token = 'UNAVAILABLE';
+  }
+
+  const isSafeText = (value) => !!value && SAFE_TEXT_PATTERN.test(value.trim());
 
   flights.forEach((flight, index) => {
     const label = `Flight ${index + 1}`;
@@ -865,13 +871,13 @@ const runSecurityScan = () => {
     ) {
       pushIssue(`${label}: ticket price out of policy.`);
     }
-    if (!flight.airline || /[<>$`]/.test(flight.airline)) {
+    if (!isSafeText(flight.airline)) {
       pushIssue(`${label}: airline field failed sanitization.`);
     }
   });
 
   reservations.forEach((reservation) => {
-    if (!reservation.passenger || /[<>$`]/.test(reservation.passenger)) {
+    if (!isSafeText(reservation.passenger)) {
       pushIssue(`Reservation ${reservation.id}: passenger name requires review.`);
     }
     if (!['BOOKED', 'CANCELLED'].includes(reservation.status)) {
@@ -887,7 +893,7 @@ const runSecurityScan = () => {
     issues,
     totalFlights: flights.length,
     totalReservations: reservations.length,
-    token: generateShieldToken(),
+    token,
     threat: getThreatLevel(score),
   };
 };
@@ -930,14 +936,26 @@ modeSelect.addEventListener('change', updateModeFields);
 
 const renderSecurityLog = (report) => {
   if (!cyberLog) return;
-  const summary = `Scan complete: ${report.issues.length} alerts across ${report.totalFlights} flights and ${report.totalReservations} reservations.`;
+  cyberLog.replaceChildren();
+  const summary = document.createElement('div');
+  summary.textContent = `Scan complete: ${report.issues.length} alerts across ${report.totalFlights} flights and ${report.totalReservations} reservations.`;
+  cyberLog.appendChild(summary);
   if (!report.issues.length) {
-    cyberLog.innerHTML = `<div>✅ ${summary} Systems nominal.</div>`;
+    const ok = document.createElement('div');
+    ok.textContent = '✅ Systems nominal.';
+    cyberLog.appendChild(ok);
     return;
   }
-  const items = report.issues.slice(0, 5).map((issue) => `<div>⚠️ ${issue}</div>`).join('');
-  const extraCount = report.issues.length > 5 ? `<div>+${report.issues.length - 5} more alerts logged.</div>` : '';
-  cyberLog.innerHTML = `<div>${summary}</div>${items}${extraCount}`;
+  report.issues.slice(0, 5).forEach((issue) => {
+    const item = document.createElement('div');
+    item.textContent = `⚠️ ${issue}`;
+    cyberLog.appendChild(item);
+  });
+  if (report.issues.length > 5) {
+    const extra = document.createElement('div');
+    extra.textContent = `+${report.issues.length - 5} more alerts logged.`;
+    cyberLog.appendChild(extra);
+  }
 };
 
 const updateSecurityUI = (report) => {
