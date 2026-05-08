@@ -833,11 +833,13 @@ const threatColorMap = {
   Elevated: '#fb7185',
   Critical: '#ff5cff',
 };
+const BASE_SECURITY_SCORE = 6;
+const MAX_TICKET_PRICE = 500000;
 
 const runSecurityScan = () => {
   const flights = getFlights();
   const reservations = getReservations();
-  let score = 6;
+  let score = BASE_SECURITY_SCORE;
   const issues = [];
 
   const pushIssue = (message, weight = 10) => {
@@ -856,7 +858,11 @@ const runSecurityScan = () => {
     if (!isValidTime(flight.departureTime) || !isValidTime(flight.arrivalTime)) {
       pushIssue(`${label}: time anomaly flagged.`);
     }
-    if (Number.isNaN(flight.ticketPrice) || flight.ticketPrice < 0 || flight.ticketPrice > 500000) {
+    if (
+      Number.isNaN(flight.ticketPrice) ||
+      flight.ticketPrice < 0 ||
+      flight.ticketPrice > MAX_TICKET_PRICE
+    ) {
       pushIssue(`${label}: ticket price out of policy.`);
     }
     if (!flight.airline || /[<>$`]/.test(flight.airline)) {
@@ -958,6 +964,7 @@ if (cyberScanBtn) {
   cyberScanBtn.addEventListener('click', () => {
     updateSecurityUI(runSecurityScan());
   });
+  updateSecurityUI(runSecurityScan());
 }
 
 if (cyberModeBtn) {
@@ -967,10 +974,6 @@ if (cyberModeBtn) {
       ? 'Disable Secure Mode'
       : 'Activate Secure Mode';
   });
-}
-
-if (cyberScanBtn) {
-  updateSecurityUI(runSecurityScan());
 }
 
 addFlightForm.addEventListener('submit', (event) => {
