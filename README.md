@@ -414,3 +414,12 @@ Build without `RUN_WEBSERVER` defined, then run the output executable. Example o
 *Built at FAST NUCES · Cyber Security · Data Structures · Spring 2026*
 
 </div>
+
+
+## My Contribution (Abdul Hannan Khan)
+
+- Worked on graph-based route modeling and helped implement understanding of DFS-based journey search
+- Contributed to system design discussions for multi-leg journey logic and constraints
+- Assisted in implementation understanding of recursive traversal and route filtering logic
+- Helped in testing scenarios and validating different query cases
+- Contributed to documentation and system explanation (README + structure breakdown)
