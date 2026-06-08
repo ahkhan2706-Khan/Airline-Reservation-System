@@ -427,9 +427,4 @@ This project was developed collaboratively as part of a Data Structures and Algo
 - Participated in testing different query scenarios and validating outputs
 - Contributed to documentation and project explanation (README and structure overview)
 
-### Contributions (Muhammad Yahya)
-- Development of core flight graph structure and routing engine
-- Implementation of recursive journey generation system
-- File handling system for flight and hotel data loading
-- Query processing for different travel scenarios (cost, time, airline, transit filters)
-- Testing and debugging of system modules
+
