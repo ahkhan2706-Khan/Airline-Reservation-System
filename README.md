@@ -416,10 +416,20 @@ Build without `RUN_WEBSERVER` defined, then run the output executable. Example o
 </div>
 
 
-## My Contribution (Abdul Hannan Khan)
+## Team Contribution Overview
 
-- Worked on graph-based route modeling and helped implement understanding of DFS-based journey search
-- Contributed to system design discussions for multi-leg journey logic and constraints
-- Assisted in implementation understanding of recursive traversal and route filtering logic
-- Helped in testing scenarios and validating different query cases
-- Contributed to documentation and system explanation (README + structure breakdown)
+This project was developed collaboratively as part of a Data Structures and Algorithms course. Work was divided across system design, implementation, and testing.
+
+### Contributions (Abdul Hannan Khan)
+- Assisted in understanding and implementing graph-based route modeling
+- Worked on DFS-based journey search logic (conceptual and structural understanding)
+- Contributed to system-level design discussions for multi-leg travel queries and constraints
+- Participated in testing different query scenarios and validating outputs
+- Contributed to documentation and project explanation (README and structure overview)
+
+### Contributions (Muhammad Yahya)
+- Development of core flight graph structure and routing engine
+- Implementation of recursive journey generation system
+- File handling system for flight and hotel data loading
+- Query processing for different travel scenarios (cost, time, airline, transit filters)
+- Testing and debugging of system modules
